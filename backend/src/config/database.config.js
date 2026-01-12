@@ -1,4 +1,4 @@
-// backend/src/shared/config/database.config.js
+// backend/src/config/database.config.js
 
 import mongoose from "mongoose";
 import { config } from "./index.js";

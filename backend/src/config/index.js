@@ -1,4 +1,4 @@
-// backend/src/shared/config/index.js
+// backend/src/config/index.js
 
 import { envConfig } from "./env.config.js";
 

@@ -1,4 +1,4 @@
-// backend/src/shared/config/env.config.js
+// backend/src/config/env.config.js
 
 import dotenv from "dotenv";
 import Joi from "joi";

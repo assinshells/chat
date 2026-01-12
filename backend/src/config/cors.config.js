@@ -1,4 +1,4 @@
-// backend/src/shared/config/cors.config.js
+// backend/src/config/cors.config.js
 
 import { envConfig } from "./env.config.js";
 

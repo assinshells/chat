@@ -1,4 +1,4 @@
-// backend/src/shared/lib/logger.js
+// backend/src/lib/logger.js
 
 import pino from "pino";
 import { config } from "../config/index.js";
