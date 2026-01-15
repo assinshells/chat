@@ -1,6 +1,16 @@
 // frontend/src/widgets/health-status/ui/HealthStatus.jsx
 
-export function HealthStatus({ status, loading, error, onRefresh }) {
+import { memo } from "react";
+
+/**
+ * Health Status Widget
+ */
+export const HealthStatus = memo(function HealthStatus({
+  status,
+  loading,
+  error,
+  onRefresh,
+}) {
   return (
     <div className="card shadow">
       <div className="card-header bg-primary text-white">
@@ -18,9 +28,12 @@ export function HealthStatus({ status, loading, error, onRefresh }) {
       </div>
     </div>
   );
-}
+});
 
-function LoadingState() {
+/**
+ * Loading State Component
+ */
+const LoadingState = memo(function LoadingState() {
   return (
     <div className="text-center py-4">
       <div className="spinner-border text-primary" role="status">
@@ -29,18 +42,26 @@ function LoadingState() {
       <p className="mt-2">Checking server connection...</p>
     </div>
   );
-}
+});
 
-function ErrorState({ error }) {
+/**
+ * Error State Component
+ */
+const ErrorState = memo(function ErrorState({ error }) {
   return (
     <div className="alert alert-danger" role="alert">
       <i className="bi bi-exclamation-triangle me-2"></i>
       <strong>Error:</strong> {error}
     </div>
   );
-}
+});
 
-function SuccessState({ status, onRefresh }) {
+/**
+ * Success State Component
+ */
+const SuccessState = memo(function SuccessState({ status, onRefresh }) {
+  const formattedDate = new Date(status.timestamp).toLocaleString();
+
   return (
     <div>
       <div className="alert alert-success d-flex align-items-center">
@@ -57,7 +78,7 @@ function SuccessState({ status, onRefresh }) {
             <span>
               <i className="bi bi-clock me-2"></i>Timestamp:
             </span>
-            <strong>{new Date(status.timestamp).toLocaleString()}</strong>
+            <strong>{formattedDate}</strong>
           </li>
           <li className="list-group-item d-flex justify-content-between">
             <span>
@@ -74,4 +95,4 @@ function SuccessState({ status, onRefresh }) {
       </button>
     </div>
   );
-}
+});

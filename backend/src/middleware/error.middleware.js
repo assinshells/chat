@@ -1,41 +1,88 @@
 // backend/src/middleware/error.middleware.js
 
 import { logger } from "../lib/logger.js";
+import { ERROR_CODES, HTTP_STATUS } from "../constants/errorCodes.js";
 
 /**
- * Error types
+ * Base Application Error
  */
 export class AppError extends Error {
-  constructor(message, statusCode = 500, errors = null) {
+  constructor(
+    message,
+    statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR,
+    code = ERROR_CODES.INTERNAL_ERROR,
+    errors = null
+  ) {
     super(message);
+    this.name = this.constructor.name;
     this.statusCode = statusCode;
+    this.code = code;
     this.errors = errors;
     this.isOperational = true;
     Error.captureStackTrace(this, this.constructor);
   }
-}
 
-export class ValidationError extends AppError {
-  constructor(message, errors = null) {
-    super(message, 400, errors);
+  toJSON() {
+    return {
+      success: false,
+      code: this.code,
+      message: this.message,
+      ...(this.errors && { errors: this.errors }),
+    };
   }
 }
 
+/**
+ * Validation Error (400)
+ */
+export class ValidationError extends AppError {
+  constructor(message = "Validation failed", errors = null) {
+    super(
+      message,
+      HTTP_STATUS.BAD_REQUEST,
+      ERROR_CODES.VALIDATION_ERROR,
+      errors
+    );
+  }
+}
+
+/**
+ * Not Found Error (404)
+ */
 export class NotFoundError extends AppError {
   constructor(message = "Resource not found") {
-    super(message, 404);
+    super(message, HTTP_STATUS.NOT_FOUND, ERROR_CODES.NOT_FOUND);
   }
 }
 
+/**
+ * Unauthorized Error (401)
+ */
 export class UnauthorizedError extends AppError {
   constructor(message = "Unauthorized") {
-    super(message, 401);
+    super(message, HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.UNAUTHORIZED);
   }
 }
 
+/**
+ * Forbidden Error (403)
+ */
 export class ForbiddenError extends AppError {
   constructor(message = "Forbidden") {
-    super(message, 403);
+    super(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.FORBIDDEN);
+  }
+}
+
+/**
+ * Database Error (500)
+ */
+export class DatabaseError extends AppError {
+  constructor(message = "Database error") {
+    super(
+      message,
+      HTTP_STATUS.INTERNAL_SERVER_ERROR,
+      ERROR_CODES.DATABASE_ERROR
+    );
   }
 }
 
@@ -43,41 +90,33 @@ export class ForbiddenError extends AppError {
  * Global error handler middleware
  */
 export const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-  error.stack = err.stack;
+  // ✅ Normalize error
+  let error = err instanceof AppError ? err : new AppError(err.message);
 
-  // Log error
-  logger.error({
-    err: error,
-    req: {
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-    },
-  });
-
-  // Mongoose validation error
+  // ✅ Handle Mongoose validation errors
   if (err.name === "ValidationError") {
     const errors = Object.values(err.errors).map((e) => ({
       field: e.path,
       message: e.message,
+      value: e.value,
     }));
     error = new ValidationError("Validation failed", errors);
   }
 
-  // Mongoose duplicate key error
+  // ✅ Handle Mongoose duplicate key errors
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    error = new ValidationError(`${field} already exists`);
+    const field = Object.keys(err.keyValue || {})[0];
+    error = new ValidationError(`${field} already exists`, [
+      { field, message: "Duplicate value" },
+    ]);
   }
 
-  // Mongoose cast error
+  // ✅ Handle Mongoose cast errors
   if (err.name === "CastError") {
     error = new ValidationError(`Invalid ${err.path}: ${err.value}`);
   }
 
-  // JWT errors
+  // ✅ Handle JWT errors
   if (err.name === "JsonWebTokenError") {
     error = new UnauthorizedError("Invalid token");
   }
@@ -86,31 +125,57 @@ export const errorHandler = (err, req, res, next) => {
     error = new UnauthorizedError("Token expired");
   }
 
-  // Send response
-  const statusCode = error.statusCode || 500;
-  const response = {
-    success: false,
-    message: error.message || "Internal server error",
+  // ✅ Log error (with sanitization)
+  const logData = {
+    error: {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      statusCode: error.statusCode,
+    },
+    request: {
+      method: req.method,
+      url: req.url,
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    },
   };
 
-  if (error.errors) {
-    response.errors = error.errors;
+  // ✅ Log stack only for server errors
+  if (error.statusCode >= 500) {
+    logData.error.stack = error.stack;
+    logger.error(logData, "Server error");
+  } else {
+    logger.warn(logData, "Client error");
   }
 
-  // Include stack trace in development
+  // ✅ Send response
+  const response = error.toJSON();
+
+  // ✅ Include stack trace only in development
   if (process.env.NODE_ENV === "development") {
     response.stack = error.stack;
   }
 
-  res.status(statusCode).json(response);
+  res.status(error.statusCode).json(response);
 };
 
 /**
- * 404 handler
+ * 404 handler (must be after all routes)
  */
 export const notFoundHandler = (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.originalUrl} not found`,
-  });
+  const error = new NotFoundError(
+    `Route ${req.method} ${req.originalUrl} not found`
+  );
+
+  logger.warn(
+    {
+      method: req.method,
+      url: req.originalUrl,
+      ip: req.ip,
+    },
+    "Route not found"
+  );
+
+  res.status(error.statusCode).json(error.toJSON());
 };
