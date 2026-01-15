@@ -13,6 +13,9 @@ export async function connectDatabase() {
 
     await mongoose.connect(config.database.uri, config.database.options);
 
+    // ✅ Validate connection
+    await mongoose.connection.db.admin().ping();
+
     logger.info(
       {
         host: mongoose.connection.host,

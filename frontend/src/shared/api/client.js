@@ -1,4 +1,4 @@
-// frontend/src/api/client.js
+// frontend/src/shared/api/client.js
 
 import axios from "axios";
 
@@ -16,7 +16,7 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Send cookies
+  withCredentials: true, // ✅ Send httpOnly cookies automatically
 });
 
 /**
@@ -24,11 +24,7 @@ export const apiClient = axios.create({
  */
 apiClient.interceptors.request.use(
   (config) => {
-    // Add auth token if exists
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    // ✅ No manual token handling - cookies are sent automatically
 
     // Log request in development
     if (import.meta.env.DEV) {
@@ -74,8 +70,8 @@ apiClient.interceptors.response.use(
 
     // Handle specific error codes
     if (error.response?.status === 401) {
-      // Unauthorized - clear token and redirect to login
-      localStorage.removeItem("token");
+      // Unauthorized - redirect to login
+      // ✅ No need to clear localStorage
       window.location.href = "/login";
     }
 

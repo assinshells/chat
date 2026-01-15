@@ -16,11 +16,15 @@ const envSchema = Joi.object({
 
   PORT: Joi.number().port().default(5000),
 
-  MONGODB_URI: Joi.string().required().description("MongoDB connection string"),
+  MONGODB_URI: Joi.string()
+    .uri()
+    .pattern(/^mongodb(\+srv)?:\/\//)
+    .required()
+    .description("MongoDB connection string"),
 
   CORS_ORIGIN: Joi.string()
     .default("http://localhost:5173")
-    .description("CORS allowed origin"),
+    .description("CORS allowed origins (comma-separated)"),
 
   LOG_LEVEL: Joi.string()
     .valid("fatal", "error", "warn", "info", "debug", "trace")

@@ -34,8 +34,13 @@ async function bootstrap() {
     const gracefulShutdown = async (signal) => {
       logger.info({ signal }, "Received shutdown signal");
 
-      server.close(async () => {
-        logger.info("HTTP server closed");
+      // Stop accepting new connections
+      server.close(async (err) => {
+        if (err) {
+          logger.error({ error: err }, "Error closing HTTP server");
+        } else {
+          logger.info("HTTP server closed");
+        }
 
         try {
           await disconnectDatabase();
