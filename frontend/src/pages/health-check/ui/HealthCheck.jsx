@@ -9,7 +9,7 @@ export function HealthCheck() {
 
   useEffect(() => {
     checkHealth();
-  }, []);
+  }, [checkHealth]);
 
   return (
     <div className="container mt-5">

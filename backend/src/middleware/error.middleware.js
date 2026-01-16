@@ -3,9 +3,6 @@
 import { logger } from "../lib/logger.js";
 import { ERROR_CODES, HTTP_STATUS } from "../constants/errorCodes.js";
 
-/**
- * Base Application Error
- */
 export class AppError extends Error {
   constructor(
     message,
@@ -32,9 +29,6 @@ export class AppError extends Error {
   }
 }
 
-/**
- * Validation Error (400)
- */
 export class ValidationError extends AppError {
   constructor(message = "Validation failed", errors = null) {
     super(
@@ -46,36 +40,24 @@ export class ValidationError extends AppError {
   }
 }
 
-/**
- * Not Found Error (404)
- */
 export class NotFoundError extends AppError {
   constructor(message = "Resource not found") {
     super(message, HTTP_STATUS.NOT_FOUND, ERROR_CODES.NOT_FOUND);
   }
 }
 
-/**
- * Unauthorized Error (401)
- */
 export class UnauthorizedError extends AppError {
   constructor(message = "Unauthorized") {
     super(message, HTTP_STATUS.UNAUTHORIZED, ERROR_CODES.UNAUTHORIZED);
   }
 }
 
-/**
- * Forbidden Error (403)
- */
 export class ForbiddenError extends AppError {
   constructor(message = "Forbidden") {
     super(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.FORBIDDEN);
   }
 }
 
-/**
- * Database Error (500)
- */
 export class DatabaseError extends AppError {
   constructor(message = "Database error") {
     super(
@@ -86,14 +68,9 @@ export class DatabaseError extends AppError {
   }
 }
 
-/**
- * Global error handler middleware
- */
 export const errorHandler = (err, req, res, next) => {
-  // ✅ Normalize error
   let error = err instanceof AppError ? err : new AppError(err.message);
 
-  // ✅ Handle Mongoose validation errors
   if (err.name === "ValidationError") {
     const errors = Object.values(err.errors).map((e) => ({
       field: e.path,
@@ -103,7 +80,6 @@ export const errorHandler = (err, req, res, next) => {
     error = new ValidationError("Validation failed", errors);
   }
 
-  // ✅ Handle Mongoose duplicate key errors
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue || {})[0];
     error = new ValidationError(`${field} already exists`, [
@@ -111,12 +87,10 @@ export const errorHandler = (err, req, res, next) => {
     ]);
   }
 
-  // ✅ Handle Mongoose cast errors
   if (err.name === "CastError") {
     error = new ValidationError(`Invalid ${err.path}: ${err.value}`);
   }
 
-  // ✅ Handle JWT errors
   if (err.name === "JsonWebTokenError") {
     error = new UnauthorizedError("Invalid token");
   }
@@ -125,7 +99,6 @@ export const errorHandler = (err, req, res, next) => {
     error = new UnauthorizedError("Token expired");
   }
 
-  // ✅ Log error (with sanitization)
   const logData = {
     error: {
       name: error.name,
@@ -141,7 +114,6 @@ export const errorHandler = (err, req, res, next) => {
     },
   };
 
-  // ✅ Log stack only for server errors
   if (error.statusCode >= 500) {
     logData.error.stack = error.stack;
     logger.error(logData, "Server error");
@@ -149,10 +121,8 @@ export const errorHandler = (err, req, res, next) => {
     logger.warn(logData, "Client error");
   }
 
-  // ✅ Send response
   const response = error.toJSON();
 
-  // ✅ Include stack trace only in development
   if (process.env.NODE_ENV === "development") {
     response.stack = error.stack;
   }
@@ -160,9 +130,6 @@ export const errorHandler = (err, req, res, next) => {
   res.status(error.statusCode).json(response);
 };
 
-/**
- * 404 handler (must be after all routes)
- */
 export const notFoundHandler = (req, res) => {
   const error = new NotFoundError(
     `Route ${req.method} ${req.originalUrl} not found`

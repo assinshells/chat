@@ -2,13 +2,9 @@
 
 import { envConfig } from "./env.config.js";
 
-/**
- * Parse allowed origins
- */
 const parseAllowedOrigins = () => {
   const origins = envConfig.CORS_ORIGIN.split(",").map((o) => o.trim());
 
-  // Remove wildcards in production
   if (envConfig.NODE_ENV === "production" && origins.includes("*")) {
     throw new Error("Wildcard CORS origin is not allowed in production");
   }
@@ -18,21 +14,12 @@ const parseAllowedOrigins = () => {
 
 const allowedOrigins = parseAllowedOrigins();
 
-/**
- * CORS configuration
- */
 export const corsOptions = {
   origin: (origin, callback) => {
-    const allowedOrigins = envConfig.CORS_ORIGIN.split(",").map((o) =>
-      o.trim()
-    );
-
-    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
       return callback(null, true);
     }
 
-    // Check if origin is allowed
     if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -49,13 +36,13 @@ export const corsOptions = {
     "Authorization",
     "X-Requested-With",
     "Accept",
+    "X-Request-ID",
   ],
 
-  exposedHeaders: ["X-Total-Count", "X-Page-Count"],
+  exposedHeaders: ["X-Total-Count", "X-Page-Count", "X-Request-ID"],
 
-  maxAge: 86400, // 24 hours
+  maxAge: 86400,
 
-  // Prevent credentials with wildcard origin
   preflightContinue: false,
   optionsSuccessStatus: 204,
 };

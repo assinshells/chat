@@ -1,6 +1,6 @@
 // frontend/src/features/health-check/model/useHealthCheck.js
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { healthApi } from "../api/health.api";
 import { retry } from "@shared/lib/retry";
 
@@ -9,7 +9,7 @@ export function useHealthCheck() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const checkHealth = async () => {
+  const checkHealth = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -29,7 +29,7 @@ export function useHealthCheck() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   return { status, loading, error, checkHealth };
 }

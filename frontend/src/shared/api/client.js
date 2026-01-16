@@ -69,32 +69,19 @@ apiClient.interceptors.response.use(
 
     console.error("❌ API Error:", errorData);
 
-    switch (error.response?.status) {
-      case 401:
-        console.warn("Unauthorized - redirecting to login");
-        window.location.href = "/login";
-        break;
+    const status = error.response?.status;
 
-      case 403:
-        console.warn("Access forbidden");
-        break;
-
-      case 404:
-        console.warn("Resource not found");
-        break;
-
-      case 429:
-        console.warn("Rate limit exceeded - please slow down");
-        break;
-
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        console.error("Server error - please try again later");
-        break;
-      default:
-        break;
+    if (status === 401) {
+      console.warn("Unauthorized - redirecting to login");
+      window.location.href = "/login";
+    } else if (status === 403) {
+      console.warn("Access forbidden");
+    } else if (status === 404) {
+      console.warn("Resource not found");
+    } else if (status === 429) {
+      console.warn("Rate limit exceeded");
+    } else if (status >= 500) {
+      console.error("Server error - please try again later");
     }
 
     return Promise.reject({
