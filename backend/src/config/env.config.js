@@ -23,14 +23,12 @@ const envSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid("fatal", "error", "warn", "info", "debug", "trace")
     .default("info"),
-  JWT_SECRET: Joi.string().min(32).when("NODE_ENV", {
-    is: "production",
-    then: Joi.required(),
-    otherwise: Joi.optional(),
-  }),
-  JWT_EXPIRES_IN: Joi.string().default("7d"),
+  JWT_SECRET: Joi.string().min(32).required(),
+  JWT_EXPIRES_IN: Joi.string().default("15m"),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
+  SUPERADMIN_PASSWORD: Joi.string().min(8).optional(),
+  FRONTEND_URL: Joi.string().uri().default("http://localhost:5173"),
 })
   .unknown(true)
   .required();
@@ -64,6 +62,8 @@ export const envConfig = {
   JWT_EXPIRES_IN: envVars.JWT_EXPIRES_IN,
   RATE_LIMIT_WINDOW_MS: envVars.RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_MAX_REQUESTS: envVars.RATE_LIMIT_MAX_REQUESTS,
+  SUPERADMIN_PASSWORD: envVars.SUPERADMIN_PASSWORD,
+  FRONTEND_URL: envVars.FRONTEND_URL,
 };
 
 if (envConfig.NODE_ENV === "production") {
@@ -95,4 +95,5 @@ if (envConfig.NODE_ENV === "development") {
   );
   console.log(`  - CORS_ORIGIN: ${envConfig.CORS_ORIGIN}`);
   console.log(`  - LOG_LEVEL: ${envConfig.LOG_LEVEL}`);
+  console.log(`  - JWT_SECRET: ${envConfig.JWT_SECRET.substring(0, 8)}...`);
 }

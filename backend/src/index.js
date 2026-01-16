@@ -7,8 +7,11 @@ import {
   disconnectDatabase,
 } from "./config/database.config.js";
 import { createServer } from "./app/server.js";
+import { setupSocketIO } from "./sockets/chat.socket.js";
+import { User } from "./models/user.model.js";
 
 let server = null;
+let io = null;
 let isShuttingDown = false;
 
 async function bootstrap() {
@@ -18,8 +21,20 @@ async function bootstrap() {
     logger.info("📦 Connecting to database...");
     await connectDatabase();
 
+    logger.info("👤 Checking superadmin...");
+    const superadmin = await User.createFirstSuperadmin();
+    if (superadmin) {
+      logger.info(
+        { nickname: superadmin.nickname },
+        "✅ First superadmin created"
+      );
+    }
+
     logger.info("🌐 Starting HTTP server...");
     server = createServer();
+
+    logger.info("🔌 Setting up Socket.IO...");
+    io = setupSocketIO(server);
 
     server.listen(config.port, () => {
       logger.info(
@@ -40,6 +55,7 @@ async function bootstrap() {
 ║   Environment: ${config.env.padEnd(21)}   ║
 ║   Port: ${String(config.port).padEnd(28)} ║
 ║   URL: http://localhost:${config.port}    ║
+║   Socket.IO: ✅ Ready                     ║
 ║                                           ║
 ╚═══════════════════════════════════════════╝
       `);
@@ -67,6 +83,11 @@ async function gracefulShutdown(signal) {
   }, 30000);
 
   try {
+    if (io) {
+      logger.info("🔌 Closing Socket.IO connections...");
+      io.close();
+    }
+
     if (server) {
       logger.info("🔌 Closing HTTP server...");
       await new Promise((resolve, reject) => {
