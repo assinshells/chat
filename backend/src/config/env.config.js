@@ -2,9 +2,7 @@
 
 import dotenv from "dotenv";
 import Joi from "joi";
-import { logger } from "../lib/logger.js";
 
-// ✅ Load environment variables
 const result = dotenv.config();
 
 if (result.error) {
@@ -12,75 +10,40 @@ if (result.error) {
   process.exit(1);
 }
 
-/**
- * Environment variables schema with detailed validation
- */
 const envSchema = Joi.object({
-  // Node environment
   NODE_ENV: Joi.string()
     .valid("development", "production", "test", "staging")
-    .default("development")
-    .description("Application environment"),
-
-  // Server configuration
-  PORT: Joi.number().port().default(5000).description("Server port"),
-
-  // Database
+    .default("development"),
+  PORT: Joi.number().port().default(5000),
   MONGODB_URI: Joi.string()
     .uri()
     .pattern(/^mongodb(\+srv)?:\/\//)
-    .required()
-    .description("MongoDB connection string")
-    .example("mongodb://localhost:27017/myapp"),
-
-  // CORS
-  CORS_ORIGIN: Joi.string()
-    .default("http://localhost:5173")
-    .description("CORS allowed origins (comma-separated)")
-    .example("http://localhost:3000,https://myapp.com"),
-
-  // Logging
+    .required(),
+  CORS_ORIGIN: Joi.string().default("http://localhost:5173"),
   LOG_LEVEL: Joi.string()
     .valid("fatal", "error", "warn", "info", "debug", "trace")
-    .default("info")
-    .description("Logging level"),
-
-  // JWT (if used)
-  JWT_SECRET: Joi.string()
-    .min(32)
-    .when("NODE_ENV", {
-      is: "production",
-      then: Joi.required(),
-      otherwise: Joi.optional(),
-    })
-    .description("JWT secret key (required in production)"),
-
-  JWT_EXPIRES_IN: Joi.string().default("7d").description("JWT expiration time"),
-
-  // Rate limiting
-  RATE_LIMIT_WINDOW_MS: Joi.number()
-    .default(15 * 60 * 1000)
-    .description("Rate limit window in milliseconds"),
-
-  RATE_LIMIT_MAX_REQUESTS: Joi.number()
-    .default(100)
-    .description("Maximum requests per window"),
+    .default("info"),
+  JWT_SECRET: Joi.string().min(32).when("NODE_ENV", {
+    is: "production",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  JWT_EXPIRES_IN: Joi.string().default("7d"),
+  RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
+  RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
 })
-  .unknown(true) // ✅ Allow other env variables
+  .unknown(true)
   .required();
 
-/**
- * Validate environment variables
- */
 const { error, value: envVars } = envSchema.validate(process.env, {
-  abortEarly: false, // ✅ Show all errors
-  stripUnknown: false, // ✅ Keep other variables
+  abortEarly: false,
+  stripUnknown: false,
 });
 
 if (error) {
-  const errorMessages = error.details.map((detail) => {
-    return `  - ${detail.path.join(".")}: ${detail.message}`;
-  });
+  const errorMessages = error.details.map(
+    (detail) => `  - ${detail.path.join(".")}: ${detail.message}`
+  );
 
   console.error("❌ Environment validation failed:");
   console.error(errorMessages.join("\n"));
@@ -91,9 +54,6 @@ if (error) {
   process.exit(1);
 }
 
-/**
- * Validated and typed environment configuration
- */
 export const envConfig = {
   NODE_ENV: envVars.NODE_ENV,
   PORT: envVars.PORT,
@@ -106,9 +66,6 @@ export const envConfig = {
   RATE_LIMIT_MAX_REQUESTS: envVars.RATE_LIMIT_MAX_REQUESTS,
 };
 
-/**
- * Validate production-specific requirements
- */
 if (envConfig.NODE_ENV === "production") {
   const productionRequirements = [];
 
@@ -129,7 +86,6 @@ if (envConfig.NODE_ENV === "production") {
   }
 }
 
-// ✅ Log configuration (hide sensitive data)
 if (envConfig.NODE_ENV === "development") {
   console.log("✅ Environment configuration loaded:");
   console.log(`  - NODE_ENV: ${envConfig.NODE_ENV}`);

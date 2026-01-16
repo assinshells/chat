@@ -1,8 +1,5 @@
 // frontend/src/shared/lib/retry.js
 
-/**
- * Retry a promise-returning function
- */
 export async function retry(fn, options = {}) {
   const {
     retries = 3,
@@ -12,6 +9,7 @@ export async function retry(fn, options = {}) {
   } = options;
 
   let lastError;
+  let timeoutId;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
@@ -22,10 +20,14 @@ export async function retry(fn, options = {}) {
       if (attempt < retries) {
         const waitTime = delay * Math.pow(backoff, attempt);
         onRetry(attempt + 1, waitTime, error);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
+
+        await new Promise((resolve) => {
+          timeoutId = setTimeout(resolve, waitTime);
+        });
       }
     }
   }
 
+  if (timeoutId) clearTimeout(timeoutId);
   throw lastError;
 }

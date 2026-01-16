@@ -1,16 +1,12 @@
 // backend/src/lib/logger.js
 
 import pino from "pino";
-import { config } from "../config/index.js";
+import { envConfig } from "../config/env.config.js";
 
-/**
- * Create Pino logger instance
- */
 const pinoConfig = {
-  level: config.logger.level,
+  level: envConfig.LOG_LEVEL,
 
-  // Pretty print in development
-  ...(config.logger.prettyPrint && {
+  ...(envConfig.NODE_ENV === "development" && {
     transport: {
       target: "pino-pretty",
       options: {
@@ -22,15 +18,12 @@ const pinoConfig = {
     },
   }),
 
-  // Base configuration
   base: {
-    env: config.env,
+    env: envConfig.NODE_ENV,
   },
 
-  // Timestamp format
   timestamp: () => `,"time":"${new Date().toISOString()}"`,
 
-  // Serializers for common objects
   serializers: {
     req: (req) => ({
       id: req.id,
@@ -50,7 +43,4 @@ const pinoConfig = {
   },
 };
 
-/**
- * Logger instance
- */
 export const logger = pino(pinoConfig);

@@ -2,9 +2,8 @@
 
 import { logger } from "../lib/logger.js";
 
-/**
- * Sanitize headers (remove sensitive data)
- */
+const SKIP_PATHS = ["/health", "/metrics"];
+
 const sanitizeHeaders = (headers) => {
   const sanitized = { ...headers };
   const sensitiveHeaders = [
@@ -23,26 +22,25 @@ const sanitizeHeaders = (headers) => {
   return sanitized;
 };
 
-/**
- * Request logging middleware
- */
 export const requestLogger = (req, res, next) => {
+  if (SKIP_PATHS.some((path) => req.path.startsWith(path))) {
+    return next();
+  }
+
   const start = Date.now();
 
-  // ✅ Безопасное логирование
   logger.info({
     method: req.method,
     url: req.url,
     ip: req.ip || req.connection.remoteAddress,
     userAgent: req.headers["user-agent"],
-    headers: sanitizeHeaders(req.headers), // ✅ Sanitized
+    headers: sanitizeHeaders(req.headers),
     query: req.query,
     msg: "Incoming request",
   });
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-
     const logLevel = res.statusCode >= 400 ? "warn" : "info";
 
     logger[logLevel]({
@@ -55,16 +53,4 @@ export const requestLogger = (req, res, next) => {
   });
 
   next();
-};
-
-/**
- * Skip logging for specific routes (health checks, metrics)
- */
-export const skipLogger = (paths = ["/health", "/metrics"]) => {
-  return (req, res, next) => {
-    if (paths.some((path) => req.path.startsWith(path))) {
-      return next();
-    }
-    return requestLogger(req, res, next);
-  };
 };

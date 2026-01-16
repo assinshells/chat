@@ -4,9 +4,6 @@ import mongoose from "mongoose";
 import { config } from "./index.js";
 import { logger } from "../lib/logger.js";
 
-/**
- * Database connection states
- */
 export const DB_STATES = {
   DISCONNECTED: 0,
   CONNECTED: 1,
@@ -14,19 +11,10 @@ export const DB_STATES = {
   DISCONNECTING: 3,
 };
 
-/**
- * Get current database connection state
- */
 export const getDBState = () => mongoose.connection.readyState;
 
-/**
- * Check if database is connected
- */
 export const isConnected = () => getDBState() === DB_STATES.CONNECTED;
 
-/**
- * Connect to MongoDB with retry logic
- */
 export async function connectDatabase(retries = 5, delay = 5000) {
   let attempt = 0;
 
@@ -38,7 +26,7 @@ export async function connectDatabase(retries = 5, delay = 5000) {
         {
           attempt,
           maxRetries: retries,
-          uri: config.database.uri.replace(/\/\/.*@/, "//***@"), // Hide credentials
+          uri: config.database.uri.replace(/\/\/.*@/, "//***@"),
         },
         "Attempting MongoDB connection"
       );
@@ -47,7 +35,6 @@ export async function connectDatabase(retries = 5, delay = 5000) {
 
       await mongoose.connect(config.database.uri, config.database.options);
 
-      // ✅ Validate connection
       await mongoose.connection.db.admin().ping();
 
       logger.info(
@@ -59,7 +46,6 @@ export async function connectDatabase(retries = 5, delay = 5000) {
         "MongoDB connected successfully"
       );
 
-      // ✅ Setup event listeners
       setupDBListeners();
 
       return;
@@ -78,7 +64,6 @@ export async function connectDatabase(retries = 5, delay = 5000) {
         throw error;
       }
 
-      // ✅ Exponential backoff
       const waitTime = delay * Math.pow(2, attempt - 1);
       logger.info(
         { waitTime, nextAttempt: attempt + 1 },
@@ -90,9 +75,6 @@ export async function connectDatabase(retries = 5, delay = 5000) {
   }
 }
 
-/**
- * Setup database event listeners
- */
 function setupDBListeners() {
   mongoose.connection.on("connected", () => {
     logger.info("MongoDB connection established");
@@ -105,7 +87,6 @@ function setupDBListeners() {
   mongoose.connection.on("disconnected", () => {
     logger.warn("MongoDB disconnected");
 
-    // ✅ Auto-reconnect logic
     setTimeout(() => {
       logger.info("Attempting to reconnect to MongoDB");
       connectDatabase(3, 3000).catch((err) => {
@@ -119,9 +100,6 @@ function setupDBListeners() {
   });
 }
 
-/**
- * Gracefully disconnect from MongoDB
- */
 export async function disconnectDatabase() {
   try {
     await mongoose.connection.close();
