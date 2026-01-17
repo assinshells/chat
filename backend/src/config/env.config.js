@@ -3,97 +3,112 @@
 import dotenv from "dotenv";
 import Joi from "joi";
 
-const result = dotenv.config();
+let envConfig = null;
 
-if (result.error) {
-  console.error("❌ Failed to load .env file:", result.error);
-  process.exit(1);
-}
+export function initializeEnv() {
+  if (envConfig) return envConfig;
 
-const envSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid("development", "production", "test", "staging")
-    .default("development"),
-  PORT: Joi.number().port().default(5000),
-  MONGODB_URI: Joi.string()
-    .uri()
-    .pattern(/^mongodb(\+srv)?:\/\//)
-    .required(),
-  CORS_ORIGIN: Joi.string().default("http://localhost:5173"),
-  LOG_LEVEL: Joi.string()
-    .valid("fatal", "error", "warn", "info", "debug", "trace")
-    .default("info"),
-  JWT_SECRET: Joi.string().min(32).required(),
-  JWT_EXPIRES_IN: Joi.string().default("15m"),
-  RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
-  RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
-  SUPERADMIN_PASSWORD: Joi.string().min(8).optional(),
-  FRONTEND_URL: Joi.string().uri().default("http://localhost:5173"),
-})
-  .unknown(true)
-  .required();
+  const result = dotenv.config();
 
-const { error, value: envVars } = envSchema.validate(process.env, {
-  abortEarly: false,
-  stripUnknown: false,
-});
-
-if (error) {
-  const errorMessages = error.details.map(
-    (detail) => `  - ${detail.path.join(".")}: ${detail.message}`
-  );
-
-  console.error("❌ Environment validation failed:");
-  console.error(errorMessages.join("\n"));
-  console.error(
-    "\n💡 Please check your .env file and ensure all required variables are set.\n"
-  );
-
-  process.exit(1);
-}
-
-export const envConfig = {
-  NODE_ENV: envVars.NODE_ENV,
-  PORT: envVars.PORT,
-  MONGODB_URI: envVars.MONGODB_URI,
-  CORS_ORIGIN: envVars.CORS_ORIGIN,
-  LOG_LEVEL: envVars.LOG_LEVEL,
-  JWT_SECRET: envVars.JWT_SECRET,
-  JWT_EXPIRES_IN: envVars.JWT_EXPIRES_IN,
-  RATE_LIMIT_WINDOW_MS: envVars.RATE_LIMIT_WINDOW_MS,
-  RATE_LIMIT_MAX_REQUESTS: envVars.RATE_LIMIT_MAX_REQUESTS,
-  SUPERADMIN_PASSWORD: envVars.SUPERADMIN_PASSWORD,
-  FRONTEND_URL: envVars.FRONTEND_URL,
-};
-
-if (envConfig.NODE_ENV === "production") {
-  const productionRequirements = [];
-
-  if (!envConfig.JWT_SECRET || envConfig.JWT_SECRET.length < 32) {
-    productionRequirements.push("JWT_SECRET must be at least 32 characters");
+  if (result.error) {
+    console.error("❌ Failed to load .env file:", result.error.message);
+    process.exit(1);
   }
 
-  if (envConfig.CORS_ORIGIN.includes("localhost")) {
-    productionRequirements.push(
-      "CORS_ORIGIN should not include localhost in production"
-    );
+  const envSchema = Joi.object({
+    NODE_ENV: Joi.string()
+      .valid("development", "production", "test", "staging")
+      .default("development"),
+    PORT: Joi.number().port().default(5000),
+    MONGODB_URI: Joi.string()
+      .uri()
+      .pattern(/^mongodb(\+srv)?:\/\//)
+      .required(),
+    CORS_ORIGIN: Joi.string().default("http://localhost:5173"),
+    LOG_LEVEL: Joi.string()
+      .valid("fatal", "error", "warn", "info", "debug", "trace")
+      .default("info"),
+    JWT_SECRET: Joi.string().min(32).required(),
+    JWT_EXPIRES_IN: Joi.string().default("15m"),
+    RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000),
+    RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
+    SUPERADMIN_PASSWORD: Joi.string().min(8).optional(),
+    FRONTEND_URL: Joi.string().uri().default("http://localhost:5173"),
+  }).unknown(true);
+
+  const { error, value: envVars } = envSchema.validate(process.env, {
+    abortEarly: false,
+    stripUnknown: false,
+  });
+
+  if (error) {
+    const errorMessages = error.details
+      .map((detail) => `  - ${detail.path.join(".")}: ${detail.message}`)
+      .join("\n");
+
+    console.error("❌ Environment validation failed:\n" + errorMessages);
+    console.error("\n💡 Check your .env file\n");
+    process.exit(1);
   }
 
-  if (productionRequirements.length > 0) {
+  envConfig = {
+    NODE_ENV: envVars.NODE_ENV,
+    PORT: envVars.PORT,
+    MONGODB_URI: envVars.MONGODB_URI,
+    CORS_ORIGIN: envVars.CORS_ORIGIN,
+    LOG_LEVEL: envVars.LOG_LEVEL,
+    JWT_SECRET: envVars.JWT_SECRET,
+    JWT_EXPIRES_IN: envVars.JWT_EXPIRES_IN,
+    RATE_LIMIT_WINDOW_MS: envVars.RATE_LIMIT_WINDOW_MS,
+    RATE_LIMIT_MAX_REQUESTS: envVars.RATE_LIMIT_MAX_REQUESTS,
+    SUPERADMIN_PASSWORD: envVars.SUPERADMIN_PASSWORD,
+    FRONTEND_URL: envVars.FRONTEND_URL,
+  };
+
+  if (envConfig.NODE_ENV === "production") {
+    validateProduction(envConfig);
+  }
+
+  if (envConfig.NODE_ENV === "development") {
+    logDevelopmentConfig(envConfig);
+  }
+
+  return envConfig;
+}
+
+function validateProduction(config) {
+  const issues = [];
+
+  if (!config.JWT_SECRET || config.JWT_SECRET.length < 32) {
+    issues.push("JWT_SECRET must be at least 32 characters");
+  }
+
+  if (config.CORS_ORIGIN.includes("localhost")) {
+    issues.push("CORS_ORIGIN should not include localhost in production");
+  }
+
+  if (issues.length > 0) {
     console.error("❌ Production validation failed:");
-    console.error(productionRequirements.map((r) => `  - ${r}`).join("\n"));
+    console.error(issues.map((i) => `  - ${i}`).join("\n"));
     process.exit(1);
   }
 }
 
-if (envConfig.NODE_ENV === "development") {
+function logDevelopmentConfig(config) {
   console.log("✅ Environment configuration loaded:");
-  console.log(`  - NODE_ENV: ${envConfig.NODE_ENV}`);
-  console.log(`  - PORT: ${envConfig.PORT}`);
+  console.log(`  - NODE_ENV: ${config.NODE_ENV}`);
+  console.log(`  - PORT: ${config.PORT}`);
   console.log(
-    `  - MONGODB_URI: ${envConfig.MONGODB_URI.replace(/\/\/.*@/, "//***@")}`
+    `  - MONGODB_URI: ${config.MONGODB_URI.replace(/\/\/.*@/, "//***@")}`,
   );
-  console.log(`  - CORS_ORIGIN: ${envConfig.CORS_ORIGIN}`);
-  console.log(`  - LOG_LEVEL: ${envConfig.LOG_LEVEL}`);
-  console.log(`  - JWT_SECRET: ${envConfig.JWT_SECRET.substring(0, 8)}...`);
+  console.log(`  - CORS_ORIGIN: ${config.CORS_ORIGIN}`);
+  console.log(`  - LOG_LEVEL: ${config.LOG_LEVEL}`);
+  console.log(`  - JWT_SECRET: ${config.JWT_SECRET.substring(0, 8)}...`);
+}
+
+export function getEnvConfig() {
+  if (!envConfig) {
+    throw new Error("Environment not initialized. Call initializeEnv() first.");
+  }
+  return envConfig;
 }

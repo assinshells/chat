@@ -1,6 +1,8 @@
 // backend/src/config/cors.config.js
 
-import { envConfig } from "./env.config.js";
+import { getEnvConfig } from "./env.config.js";
+
+const envConfig = getEnvConfig();
 
 const parseAllowedOrigins = () => {
   const origins = envConfig.CORS_ORIGIN.split(",").map((o) => o.trim());

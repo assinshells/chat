@@ -1,7 +1,9 @@
 // backend/src/lib/logger.js
 
 import pino from "pino";
-import { envConfig } from "../config/env.config.js";
+import { getEnvConfig } from "../config/env.config.js";
+
+const envConfig = getEnvConfig();
 
 const pinoConfig = {
   level: envConfig.LOG_LEVEL,

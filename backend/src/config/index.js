@@ -1,10 +1,9 @@
 // backend/src/config/index.js
 
-import { envConfig } from "./env.config.js";
+import { getEnvConfig } from "./env.config.js";
 
-/**
- * Application configuration
- */
+const envConfig = getEnvConfig();
+
 export const config = {
   env: envConfig.NODE_ENV,
   port: envConfig.PORT,

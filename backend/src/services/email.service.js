@@ -2,12 +2,10 @@
 
 import nodemailer from "nodemailer";
 import { logger } from "../lib/logger.js";
-import { envConfig } from "../config/env.config.js";
+import { getEnvConfig } from "../config/env.config.js";
 
-/**
- * Email service for sending emails
- * In production, configure with real SMTP credentials
- */
+const envConfig = getEnvConfig();
+
 class EmailService {
   constructor() {
     this.transporter = null;
@@ -16,7 +14,6 @@ class EmailService {
 
   initialize() {
     if (envConfig.NODE_ENV === "production") {
-      // Production: Use real SMTP service (Gmail, SendGrid, AWS SES, etc.)
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT || 587,
@@ -27,7 +24,6 @@ class EmailService {
         },
       });
     } else {
-      // Development: Use ethereal.email for testing
       nodemailer.createTestAccount().then((account) => {
         this.transporter = nodemailer.createTransport({
           host: "smtp.ethereal.email",
@@ -50,9 +46,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send password reset email
-   */
   async sendPasswordReset(email, resetToken) {
     const resetUrl = `${envConfig.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
@@ -147,9 +140,6 @@ class EmailService {
     }
   }
 
-  /**
-   * Send welcome email
-   */
   async sendWelcome(email, nickname) {
     const mailOptions = {
       from: process.env.SMTP_FROM || '"Chat App" <noreply@chatapp.com>',
@@ -215,7 +205,6 @@ class EmailService {
       return info;
     } catch (error) {
       logger.error({ error, email }, "Failed to send welcome email");
-      // Don't throw - welcome email is not critical
     }
   }
 }

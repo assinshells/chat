@@ -1,6 +1,12 @@
 // frontend/src/app/providers/AuthContext.jsx
 
-import { createContext, useContext, useState, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { api } from "@shared/api";
 
 const AuthContext = createContext(null);
@@ -13,7 +19,7 @@ export function AuthProvider({ children }) {
     checkAuth();
   }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const response = await api.get("/api/auth/me");
       setUser(response.data.data);
@@ -22,41 +28,38 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (nickname, password) => {
+  const login = useCallback(async (nickname, password) => {
     const response = await api.post("/api/auth/login", { nickname, password });
     setUser(response.data.data.user);
     return response.data;
-  };
+  }, []);
 
-  const register = async (
-    nickname,
-    password,
-    email,
-    captchaId,
-    captchaText
-  ) => {
-    const response = await api.post("/api/auth/register", {
-      nickname,
-      password,
-      email,
-      captchaId,
-      captchaText,
-    });
-    setUser(response.data.data.user);
-    return response.data;
-  };
+  const register = useCallback(
+    async (nickname, password, email, captchaId, captchaText) => {
+      const response = await api.post("/api/auth/register", {
+        nickname,
+        password,
+        email,
+        captchaId,
+        captchaText,
+      });
+      setUser(response.data.data.user);
+      return response.data;
+    },
+    [],
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await api.post("/api/auth/logout");
     } finally {
       setUser(null);
     }
-  };
+  }, []);
 
-  const refreshToken = async () => {
+  const refreshToken = useCallback(async () => {
     try {
       const response = await api.post("/api/auth/refresh");
       setUser(response.data.data.user);
@@ -65,7 +68,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       throw error;
     }
-  };
+  }, []);
 
   const value = {
     user,

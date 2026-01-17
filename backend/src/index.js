@@ -1,5 +1,9 @@
 // backend/src/index.js
 
+import { initializeEnv } from "./config/env.config.js";
+
+initializeEnv();
+
 import { config } from "./config/index.js";
 import { logger } from "./lib/logger.js";
 import {
@@ -26,7 +30,7 @@ async function bootstrap() {
     if (superadmin) {
       logger.info(
         { nickname: superadmin.nickname },
-        "✅ First superadmin created"
+        "✅ First superadmin created",
       );
     }
 
@@ -44,7 +48,7 @@ async function bootstrap() {
           nodeVersion: process.version,
           pid: process.pid,
         },
-        "✅ Server started successfully"
+        "✅ Server started successfully",
       );
 
       console.log(`
@@ -85,7 +89,12 @@ async function gracefulShutdown(signal) {
   try {
     if (io) {
       logger.info("🔌 Closing Socket.IO connections...");
-      io.close();
+      await new Promise((resolve) => {
+        io.close(() => {
+          logger.info("✅ Socket.IO closed");
+          resolve();
+        });
+      });
     }
 
     if (server) {
@@ -139,7 +148,7 @@ function setupGracefulShutdown() {
           message: warning.message,
           stack: warning.stack,
         },
-        "⚠️ Node.js warning"
+        "⚠️ Node.js warning",
       );
     });
   }

@@ -13,7 +13,6 @@ import {
   errorHandler,
   notFoundHandler,
 } from "../middleware/error.middleware.js";
-
 import { healthRouter } from "../routes/health.routes.js";
 import { authRouter } from "../routes/auth.routes.js";
 import { adminRouter } from "../routes/admin.routes.js";
@@ -23,7 +22,6 @@ export const app = express();
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(cookieParser());
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
@@ -46,7 +44,6 @@ const healthLimiter = rateLimit({
 app.use(globalLimiter);
 app.use(requestLogger);
 
-// Routes
 app.use("/health", healthLimiter, healthRouter);
 app.use("/api/health", healthLimiter, healthRouter);
 app.use("/api/auth", authRouter);

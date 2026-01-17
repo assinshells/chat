@@ -1,9 +1,8 @@
 // frontend/src/pages/chat/ui/ChatPage.jsx
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@app/providers/AuthContext";
 import { useSocket } from "@shared/hooks/useSocket";
-import { api } from "@shared/api";
 
 export function ChatPage() {
   const { user, logout } = useAuth();
@@ -13,59 +12,63 @@ export function ChatPage() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Get access token from storage or state
-  const [accessToken, setAccessToken] = useState(null);
-
-  useEffect(() => {
-    api.get("/api/auth/me").then((res) => {
-      // Token is in httpOnly cookie, just verify we're authenticated
-      setAccessToken("authenticated");
-    });
-  }, []);
-
-  const { isConnected, emit, on, off } = useSocket(accessToken);
+  const { isConnected, emit, on, off } = useSocket();
 
   useEffect(() => {
     if (!isConnected) return;
 
-    on("chat:history", (data) => {
+    const handleHistory = (data) => {
       setMessages(data.messages);
-    });
+    };
 
-    on("chat:message", (message) => {
+    const handleMessage = (message) => {
       setMessages((prev) => [...prev, message]);
-    });
+    };
 
-    on("chat:message-deleted", (data) => {
+    const handleMessageDeleted = (data) => {
       setMessages((prev) => prev.filter((msg) => msg.id !== data.id));
-    });
+    };
 
-    on("chat:user-joined", (data) => {
+    const handleUserJoined = (data) => {
       console.log(`${data.nickname} joined`);
-    });
+    };
 
-    on("chat:user-left", (data) => {
+    const handleUserLeft = (data) => {
       console.log(`${data.nickname} left`);
-    });
+    };
 
-    on("chat:user-typing", (data) => {
+    const handleUserTyping = (data) => {
       setTyping(data.nickname);
-      clearTimeout(typingTimeoutRef.current);
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
       typingTimeoutRef.current = setTimeout(() => setTyping(null), 3000);
-    });
+    };
 
-    on("chat:error", (data) => {
+    const handleError = (data) => {
       alert(data.message);
-    });
+    };
+
+    on("chat:history", handleHistory);
+    on("chat:message", handleMessage);
+    on("chat:message-deleted", handleMessageDeleted);
+    on("chat:user-joined", handleUserJoined);
+    on("chat:user-left", handleUserLeft);
+    on("chat:user-typing", handleUserTyping);
+    on("chat:error", handleError);
 
     return () => {
-      off("chat:history");
-      off("chat:message");
-      off("chat:message-deleted");
-      off("chat:user-joined");
-      off("chat:user-left");
-      off("chat:user-typing");
-      off("chat:error");
+      off("chat:history", handleHistory);
+      off("chat:message", handleMessage);
+      off("chat:message-deleted", handleMessageDeleted);
+      off("chat:user-joined", handleUserJoined);
+      off("chat:user-left", handleUserLeft);
+      off("chat:user-typing", handleUserTyping);
+      off("chat:error", handleError);
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
     };
   }, [isConnected, on, off]);
 
@@ -73,23 +76,29 @@ export function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (!inputMessage.trim()) return;
 
-    emit("chat:message", { content: inputMessage });
-    setInputMessage("");
-  };
+      emit("chat:message", { content: inputMessage });
+      setInputMessage("");
+    },
+    [inputMessage, emit],
+  );
 
-  const handleTyping = () => {
+  const handleTyping = useCallback(() => {
     emit("chat:typing");
-  };
+  }, [emit]);
 
-  const handleDeleteMessage = (messageId) => {
-    if (confirm("Delete this message?")) {
-      emit("chat:delete-message", { messageId });
-    }
-  };
+  const handleDeleteMessage = useCallback(
+    (messageId) => {
+      if (confirm("Delete this message?")) {
+        emit("chat:delete-message", { messageId });
+      }
+    },
+    [emit],
+  );
 
   return (
     <div className="container-fluid vh-100 d-flex flex-column">
