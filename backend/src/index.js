@@ -4,14 +4,14 @@ import { initializeEnv } from "./config/env.config.js";
 
 initializeEnv();
 
-import { config } from "./config/index.js";
+import { getConfig } from "./config/index.js";
 import { logger } from "./lib/logger.js";
 import {
   connectDatabase,
   disconnectDatabase,
 } from "./config/database.config.js";
 import { createServer } from "./app/server.js";
-import { setupSocketIO } from "./sockets/chat.socket.js";
+import { setupSocketIO, cleanupSocketIO } from "./sockets/chat.socket.js";
 import { User } from "./models/user.model.js";
 
 let server = null;
@@ -39,6 +39,8 @@ async function bootstrap() {
 
     logger.info("🔌 Setting up Socket.IO...");
     io = setupSocketIO(server);
+
+    const config = getConfig();
 
     server.listen(config.port, () => {
       logger.info(
@@ -95,6 +97,7 @@ async function gracefulShutdown(signal) {
           resolve();
         });
       });
+      cleanupSocketIO();
     }
 
     if (server) {
@@ -140,7 +143,7 @@ function setupGracefulShutdown() {
     gracefulShutdown("unhandledRejection");
   });
 
-  if (config.env === "development") {
+  if (getConfig().env === "development") {
     process.on("warning", (warning) => {
       logger.warn(
         {

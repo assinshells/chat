@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { api } from "@shared/api";
 
@@ -14,12 +15,13 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
+  const isCheckingAuth = useRef(false);
 
   const checkAuth = useCallback(async () => {
+    if (isCheckingAuth.current) return;
+
+    isCheckingAuth.current = true;
+
     try {
       const response = await api.get("/api/auth/me");
       setUser(response.data.data);
@@ -27,7 +29,12 @@ export function AuthProvider({ children }) {
       setUser(null);
     } finally {
       setLoading(false);
+      isCheckingAuth.current = false;
     }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
   }, []);
 
   const login = useCallback(async (nickname, password) => {

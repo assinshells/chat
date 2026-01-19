@@ -2,19 +2,33 @@
 
 import { getEnvConfig } from "./env.config.js";
 
-const envConfig = getEnvConfig();
+let allowedOrigins = null;
 
 const parseAllowedOrigins = () => {
+  if (allowedOrigins) return allowedOrigins;
+
+  const envConfig = getEnvConfig();
   const origins = envConfig.CORS_ORIGIN.split(",").map((o) => o.trim());
 
-  if (envConfig.NODE_ENV === "production" && origins.includes("*")) {
-    throw new Error("Wildcard CORS origin is not allowed in production");
+  if (envConfig.NODE_ENV === "production") {
+    if (origins.includes("*")) {
+      throw new Error(
+        "❌ Security Error: Wildcard CORS origin is not allowed in production",
+      );
+    }
+
+    origins.forEach((origin) => {
+      if (origin === "localhost" || origin.includes("localhost")) {
+        throw new Error(
+          "❌ Security Error: localhost is not allowed in production CORS",
+        );
+      }
+    });
   }
 
+  allowedOrigins = origins;
   return origins;
 };
-
-const allowedOrigins = parseAllowedOrigins();
 
 export const corsOptions = {
   origin: (origin, callback) => {
@@ -22,7 +36,9 @@ export const corsOptions = {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+    const allowed = parseAllowedOrigins();
+
+    if (allowed.includes("*") || allowed.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error(`Origin ${origin} not allowed by CORS`));

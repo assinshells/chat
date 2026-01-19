@@ -11,14 +11,17 @@ export function useSocket() {
   const [error, setError] = useState(null);
   const socketRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const isInitializing = useRef(false);
 
   useEffect(() => {
-    let accessToken = null;
+    if (isInitializing.current) return;
+
+    isInitializing.current = true;
 
     const initSocket = async () => {
       try {
         const response = await api.get("/api/auth/me");
-        accessToken = response.data.data.accessToken;
+        const accessToken = response.data.data.accessToken;
 
         if (!accessToken) {
           throw new Error("No access token received");
@@ -28,6 +31,7 @@ export function useSocket() {
       } catch (err) {
         console.error("Failed to get access token:", err);
         setError("Failed to authenticate");
+        isInitializing.current = false;
       }
     };
 
@@ -81,12 +85,15 @@ export function useSocket() {
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
 
       if (socketRef.current) {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+
+      isInitializing.current = false;
     };
   }, []);
 

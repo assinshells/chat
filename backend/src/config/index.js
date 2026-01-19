@@ -2,29 +2,46 @@
 
 import { getEnvConfig } from "./env.config.js";
 
-const envConfig = getEnvConfig();
+let cachedConfig = null;
 
-export const config = {
-  env: envConfig.NODE_ENV,
-  port: envConfig.PORT,
+export function getConfig() {
+  if (!cachedConfig) {
+    const env = getEnvConfig();
 
-  database: {
-    uri: envConfig.MONGODB_URI,
-    options: {
-      maxPoolSize: 10,
-      minPoolSize: 2,
-      socketTimeoutMS: 45000,
-      serverSelectionTimeoutMS: 5000,
+    cachedConfig = {
+      env: env.NODE_ENV,
+      port: env.PORT,
+
+      database: {
+        uri: env.MONGODB_URI,
+        options: {
+          maxPoolSize: 10,
+          minPoolSize: 2,
+          socketTimeoutMS: 45000,
+          serverSelectionTimeoutMS: 5000,
+        },
+      },
+
+      cors: {
+        origin: env.CORS_ORIGIN,
+        credentials: true,
+      },
+
+      logger: {
+        level: env.LOG_LEVEL,
+        prettyPrint: env.NODE_ENV === "development",
+      },
+    };
+  }
+
+  return cachedConfig;
+}
+
+export const config = new Proxy(
+  {},
+  {
+    get(target, prop) {
+      return getConfig()[prop];
     },
   },
-
-  cors: {
-    origin: envConfig.CORS_ORIGIN,
-    credentials: true,
-  },
-
-  logger: {
-    level: envConfig.LOG_LEVEL,
-    prettyPrint: envConfig.NODE_ENV === "development",
-  },
-};
+);

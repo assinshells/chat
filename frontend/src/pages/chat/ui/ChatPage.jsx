@@ -1,8 +1,42 @@
 // frontend/src/pages/chat/ui/ChatPage.jsx
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, memo } from "react";
 import { useAuth } from "@app/providers/AuthContext";
 import { useSocket } from "@shared/hooks/useSocket";
+
+const MessageItem = memo(({ msg, currentUserId, onDelete }) => {
+  const isOwn = msg.user === currentUserId;
+
+  return (
+    <div className={`mb-2 ${isOwn ? "text-end" : ""}`}>
+      <div
+        className={`d-inline-block p-2 rounded ${
+          isOwn ? "bg-primary text-white" : "bg-white border"
+        }`}
+        style={{ maxWidth: "70%" }}
+      >
+        <small className="d-block fw-bold">
+          {msg.nickname}
+          {isOwn && (
+            <button
+              className="btn btn-sm btn-link text-white p-0 ms-2"
+              onClick={() => onDelete(msg.id)}
+              aria-label="Delete message"
+            >
+              <i className="bi bi-trash"></i>
+            </button>
+          )}
+        </small>
+        <div>{msg.content}</div>
+        <small className="text-muted">
+          {new Date(msg.createdAt).toLocaleTimeString()}
+        </small>
+      </div>
+    </div>
+  );
+});
+
+MessageItem.displayName = "MessageItem";
 
 export function ChatPage() {
   const { user, logout } = useAuth();
@@ -79,9 +113,10 @@ export function ChatPage() {
   const handleSendMessage = useCallback(
     (e) => {
       e.preventDefault();
-      if (!inputMessage.trim()) return;
+      const trimmed = inputMessage.trim();
+      if (!trimmed) return;
 
-      emit("chat:message", { content: inputMessage });
+      emit("chat:message", { content: trimmed });
       setInputMessage("");
     },
     [inputMessage, emit],
@@ -132,35 +167,12 @@ export function ChatPage() {
 
       <div className="flex-grow-1 overflow-auto p-3 bg-light">
         {messages.map((msg) => (
-          <div
+          <MessageItem
             key={msg.id}
-            className={`mb-2 ${msg.user === user?.id ? "text-end" : ""}`}
-          >
-            <div
-              className={`d-inline-block p-2 rounded ${
-                msg.user === user?.id
-                  ? "bg-primary text-white"
-                  : "bg-white border"
-              }`}
-              style={{ maxWidth: "70%" }}
-            >
-              <small className="d-block fw-bold">
-                {msg.nickname}
-                {msg.user === user?.id && (
-                  <button
-                    className="btn btn-sm btn-link text-white p-0 ms-2"
-                    onClick={() => handleDeleteMessage(msg.id)}
-                  >
-                    <i className="bi bi-trash"></i>
-                  </button>
-                )}
-              </small>
-              <div>{msg.content}</div>
-              <small className="text-muted">
-                {new Date(msg.createdAt).toLocaleTimeString()}
-              </small>
-            </div>
-          </div>
+            msg={msg}
+            currentUserId={user?.id}
+            onDelete={handleDeleteMessage}
+          />
         ))}
         {typing && (
           <div className="text-muted">

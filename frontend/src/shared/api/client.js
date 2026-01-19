@@ -26,7 +26,6 @@ apiClient.interceptors.request.use(
         id: config.headers["X-Request-ID"],
         method: config.method.toUpperCase(),
         url: config.url,
-        data: config.data,
       });
     }
 
@@ -35,7 +34,7 @@ apiClient.interceptors.request.use(
   (error) => {
     console.error("❌ Request setup error:", error);
     return Promise.reject(error);
-  }
+  },
 );
 
 apiClient.interceptors.response.use(
@@ -47,7 +46,6 @@ apiClient.interceptors.response.use(
         id: response.config.headers["X-Request-ID"],
         status: response.status,
         duration: `${duration}ms`,
-        data: response.data,
       });
     }
 
@@ -63,7 +61,6 @@ apiClient.interceptors.response.use(
       message: error.message,
       status: error.response?.status,
       statusText: error.response?.statusText,
-      data: error.response?.data,
       duration: duration ? `${duration}ms` : null,
     };
 
@@ -71,17 +68,9 @@ apiClient.interceptors.response.use(
 
     const status = error.response?.status;
 
-    if (status === 401) {
+    if (status === 401 && !error.config.url.includes("/auth/")) {
       console.warn("Unauthorized - redirecting to login");
       window.location.href = "/login";
-    } else if (status === 403) {
-      console.warn("Access forbidden");
-    } else if (status === 404) {
-      console.warn("Resource not found");
-    } else if (status === 429) {
-      console.warn("Rate limit exceeded");
-    } else if (status >= 500) {
-      console.error("Server error - please try again later");
     }
 
     return Promise.reject({
@@ -92,7 +81,7 @@ apiClient.interceptors.response.use(
       errors: error.response?.data?.errors,
       originalError: error,
     });
-  }
+  },
 );
 
 export const api = {

@@ -12,7 +12,63 @@ const MESSAGE_RATE_LIMIT = {
   duration: 60000,
 };
 
-const socketRateLimiters = new Map();
+const CLEANUP_INTERVAL = 300000; // 5 minutes
+
+class RateLimiter {
+  constructor() {
+    this.limiters = new Map();
+    this.startCleanup();
+  }
+
+  startCleanup() {
+    this.cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [socketId, limiter] of this.limiters.entries()) {
+        if (now > limiter.resetTime) {
+          this.limiters.delete(socketId);
+        }
+      }
+    }, CLEANUP_INTERVAL);
+  }
+
+  stopCleanup() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
+
+  check(socketId) {
+    let limiter = this.limiters.get(socketId);
+    const now = Date.now();
+
+    if (!limiter || now > limiter.resetTime) {
+      limiter = {
+        points: MESSAGE_RATE_LIMIT.points,
+        resetTime: now + MESSAGE_RATE_LIMIT.duration,
+      };
+      this.limiters.set(socketId, limiter);
+    }
+
+    if (limiter.points <= 0) {
+      return false;
+    }
+
+    limiter.points--;
+    return true;
+  }
+
+  remove(socketId) {
+    this.limiters.delete(socketId);
+  }
+
+  clear() {
+    this.limiters.clear();
+    this.stopCleanup();
+  }
+}
+
+let rateLimiter = null;
 
 export function setupSocketIO(server) {
   const io = new Server(server, {
@@ -22,7 +78,10 @@ export function setupSocketIO(server) {
     },
     pingTimeout: 60000,
     pingInterval: 25000,
+    maxHttpBufferSize: 1e6,
   });
+
+  rateLimiter = new RateLimiter();
 
   io.use(async (socket, next) => {
     try {
@@ -44,11 +103,6 @@ export function setupSocketIO(server) {
         nickname: user.nickname,
         role: user.role,
       };
-
-      socketRateLimiters.set(socket.id, {
-        points: MESSAGE_RATE_LIMIT.points,
-        resetTime: Date.now() + MESSAGE_RATE_LIMIT.duration,
-      });
 
       next();
     } catch (error) {
@@ -76,7 +130,7 @@ export function setupSocketIO(server) {
 
     socket.on("chat:message", async (data) => {
       try {
-        if (!checkRateLimit(socket.id)) {
+        if (!rateLimiter.check(socket.id)) {
           return socket.emit("chat:error", {
             message: "Rate limit exceeded. Please slow down.",
           });
@@ -153,7 +207,7 @@ export function setupSocketIO(server) {
         "User disconnected from chat",
       );
 
-      socketRateLimiters.delete(socket.id);
+      rateLimiter.remove(socket.id);
 
       socket.to("chat").emit("chat:user-left", {
         nickname: socket.user.nickname,
@@ -167,22 +221,9 @@ export function setupSocketIO(server) {
   return io;
 }
 
-function checkRateLimit(socketId) {
-  const limiter = socketRateLimiters.get(socketId);
-
-  if (!limiter) return false;
-
-  const now = Date.now();
-
-  if (now > limiter.resetTime) {
-    limiter.points = MESSAGE_RATE_LIMIT.points;
-    limiter.resetTime = now + MESSAGE_RATE_LIMIT.duration;
+export function cleanupSocketIO() {
+  if (rateLimiter) {
+    rateLimiter.clear();
+    rateLimiter = null;
   }
-
-  if (limiter.points <= 0) {
-    return false;
-  }
-
-  limiter.points--;
-  return true;
 }

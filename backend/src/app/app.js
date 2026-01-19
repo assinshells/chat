@@ -19,7 +19,26 @@ import { adminRouter } from "../routes/admin.routes.js";
 
 export const app = express();
 
-app.use(helmet());
+app.set("trust proxy", 1);
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    },
+  }),
+);
+
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
@@ -31,6 +50,7 @@ const globalLimiter = rateLimit({
   message: "Too many requests from this IP",
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path.startsWith("/health"),
 });
 
 const healthLimiter = rateLimit({
